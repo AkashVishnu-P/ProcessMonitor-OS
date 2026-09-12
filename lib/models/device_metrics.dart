@@ -23,6 +23,10 @@ class DeviceMetrics {
   final String batteryHealth; // Good, Overheat, etc.
   final int batteryVoltage; // in mV
 
+  // CPU Metrics
+  final double cpuUsagePercent; // 0.0 - 100.0%
+  final int cpuCores;
+
   // Timestamp of capture
   final DateTime timestamp;
 
@@ -43,6 +47,8 @@ class DeviceMetrics {
     required this.batteryTemperature,
     required this.batteryHealth,
     required this.batteryVoltage,
+    this.cpuUsagePercent = 24.5,
+    this.cpuCores = 8,
     required this.timestamp,
   });
 
@@ -72,9 +78,9 @@ class DeviceMetrics {
     const freeStorage = 136365211648; // ~127 GB free
 
     return DeviceMetrics(
-      deviceName: 'Pixel 7',
+      deviceName: 'Pixel 8 Pro',
       manufacturer: 'Google',
-      model: 'GVU6C',
+      model: 'GC3VE',
       androidVersion: '14',
       apiLevel: 34,
       totalRamBytes: totalRam,
@@ -88,6 +94,8 @@ class DeviceMetrics {
       batteryTemperature: 31.4,
       batteryHealth: 'Good',
       batteryVoltage: 4120,
+      cpuUsagePercent: 28.5,
+      cpuCores: 8,
       timestamp: DateTime.now(),
     );
   }

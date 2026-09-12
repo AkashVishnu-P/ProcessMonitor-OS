@@ -39,9 +39,9 @@ class ProcessCardWidget extends StatelessWidget {
     final priorityColor = _getPriorityColor(process.priority);
 
     return Container(
-      width: isRunning ? double.infinity : 175,
-      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      width: isRunning ? double.infinity : 210,
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: process.color.withAlpha(25),
         border: Border.all(
@@ -56,39 +56,63 @@ class ProcessCardWidget extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: process.color,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                process.name,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: priorityColor.withAlpha(35),
+              if (process.iconBytes != null && process.iconBytes!.isNotEmpty) ...[
+                ClipRRect(
                   borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'P${process.priority}',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: priorityColor,
+                  child: Image.memory(
+                    process.iconBytes!,
+                    width: 16,
+                    height: 16,
+                    fit: BoxFit.cover,
                   ),
                 ),
+                const SizedBox(width: 6),
+              ] else ...[
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: process.color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        process.name,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: priorityColor.withAlpha(35),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'P${process.priority}',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: priorityColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 4),
               StateBadgeWidget(state: process.state, compact: true, showIcon: false),
               if (isRunning) ...[
                 const SizedBox(width: 4),
@@ -103,11 +127,14 @@ class ProcessCardWidget extends StatelessWidget {
           const SizedBox(height: 6),
           if (isRunning) ...[
             Text(
-              'Burst: ${process.burstTime}s  |  Rem: ${process.remainingTime}s',
+              'Burst: ${process.burstTime}s (Rem: ${process.remainingTime}s) | ${process.memoryMb} MB',
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: theme.colorScheme.primary,
+                fontSize: 11,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 6),
             ClipRRect(
@@ -121,25 +148,35 @@ class ProcessCardWidget extends StatelessWidget {
             ),
           ] else if (process.completionTime != null) ...[
             Text(
-              'Turnaround: ${process.turnaroundTime}s',
-              style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+              'TAT: ${process.turnaroundTime}s | Wait: ${process.waitingTime}s | Resp: ${process.responseTime}s',
+              style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500, fontSize: 11),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
-              'Wait: ${process.waitingTime}s',
+              'Burst: ${process.burstTime}s | RAM: ${process.memoryMb} MB',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 10.5,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ] else ...[
             Text(
-              'Burst: ${process.burstTime}s (Rem: ${process.remainingTime}s)',
-              style: theme.textTheme.bodySmall,
+              'Burst: ${process.burstTime}s (Rem: ${process.remainingTime}s) | ${process.memoryMb} MB',
+              style: theme.textTheme.bodySmall?.copyWith(fontSize: 11),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
-              'Wait: ${process.waitingTime}s',
+              'Wait: ${process.waitingTime}s | Priority: ${process.priority}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 10.5,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
           if (onAction != null && actionLabel != null) ...[

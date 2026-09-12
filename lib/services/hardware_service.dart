@@ -12,8 +12,8 @@ class HardwareService {
   final Battery _battery = Battery();
 
   Future<DeviceMetrics> fetchDeviceMetrics() async {
-    // If not running on Android (e.g. desktop/web or tests), return realistic mock data
-    if (!kIsWeb && !Platform.isAndroid) {
+    // If running on web or non-Android (desktop, tests), return realistic mock data
+    if (kIsWeb || !Platform.isAndroid) {
       return DeviceMetrics.mock();
     }
 
@@ -110,6 +110,19 @@ class HardwareService {
         debugPrint('Error calling getBatteryExtraInfo: $e');
       }
 
+      int cpuCores = 8;
+      double cpuUsagePercent = 25.0;
+
+      try {
+        final cpuResult = await _channel.invokeMapMethod<String, dynamic>('getCpuInfo');
+        if (cpuResult != null) {
+          cpuCores = (cpuResult['cores'] as num?)?.toInt() ?? 8;
+          cpuUsagePercent = (cpuResult['usagePercent'] as num?)?.toDouble() ?? 25.0;
+        }
+      } catch (e) {
+        debugPrint('Error calling getCpuInfo: $e');
+      }
+
       // Fallback if platform channel failed (e.g., emulator without permissions or restricted environment)
       if (totalRamBytes == 0) {
         totalRamBytes = 6 * 1024 * 1024 * 1024;
@@ -143,6 +156,8 @@ class HardwareService {
         batteryTemperature: batteryTemperature,
         batteryHealth: batteryHealth,
         batteryVoltage: batteryVoltage,
+        cpuUsagePercent: cpuUsagePercent,
+        cpuCores: cpuCores,
         timestamp: DateTime.now(),
       );
     } catch (e) {

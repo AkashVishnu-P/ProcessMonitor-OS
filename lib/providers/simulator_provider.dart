@@ -37,6 +37,18 @@ class SimulatorProvider extends ChangeNotifier {
   int _currentTick = 0;
   int _pidCounter = 0;
   Timer? _timer;
+  int _cpuIdleTicks = 0;
+
+  // Simulated RAM Management (in MB)
+  final int _totalMemoryMb = 4096; // 4 GB physical RAM pool
+  final int _kernelMemoryMb = 512; // 512 MB reserved for OS Kernel
+
+  // Decision audit logging for Professor Mode
+  String? _lastDecisionProcess;
+  String? _lastDecisionReason;
+  String? _lastPreemptedProcess;
+  String? _lastPreemptionNewProcess;
+  String? _lastPreemptionReason;
 
   // Tracks the last PID that triggered a voice narration, so we only
   // narrate when the running process *actually changes* (not every tick).
@@ -71,6 +83,30 @@ class SimulatorProvider extends ChangeNotifier {
   int get timeQuantum => _timeQuantum;
   bool get isRunning => _isRunning;
   int get currentTick => _currentTick;
+  int get cpuIdleTicks => _cpuIdleTicks;
+
+  // Simulated Memory Management
+  int get totalMemoryMb => _totalMemoryMb;
+  int get kernelMemoryMb => _kernelMemoryMb;
+  int get allocatedProcessMemoryMb {
+    int total = 0;
+    if (_runningProcess != null) total += _runningProcess!.memoryMb;
+    for (final p in _readyQueue) {
+      total += p.memoryMb;
+    }
+    for (final p in _waitingQueue) {
+      total += p.memoryMb;
+    }
+    return total;
+  }
+  int get freeMemoryMb => max(0, _totalMemoryMb - _kernelMemoryMb - allocatedProcessMemoryMb);
+
+  // Professor Mode Audit
+  String? get lastDecisionProcess => _lastDecisionProcess;
+  String? get lastDecisionReason => _lastDecisionReason;
+  String? get lastPreemptedProcess => _lastPreemptedProcess;
+  String? get lastPreemptionNewProcess => _lastPreemptionNewProcess;
+  String? get lastPreemptionReason => _lastPreemptionReason;
 
   bool get autoGenerateStream => _autoGenerateStream;
   double get arrivalProbability => _arrivalProbability;
@@ -86,6 +122,18 @@ class SimulatorProvider extends ChangeNotifier {
       SchedulingAlgorithms.calculateAverageWaitingTime(_terminatedList);
   double get averageTurnaroundTime =>
       SchedulingAlgorithms.calculateAverageTurnaroundTime(_terminatedList);
+  double get averageResponseTime =>
+      SchedulingAlgorithms.calculateAverageResponseTime(_terminatedList);
+
+  double get cpuUtilization => SchedulingAlgorithms.calculateCpuUtilization(
+        totalTicks: _currentTick,
+        idleTicks: _cpuIdleTicks,
+      );
+
+  double get throughput => SchedulingAlgorithms.calculateThroughput(
+        completedCount: _terminatedList.length,
+        totalTicks: _currentTick,
+      );
 
   // Voice Tutor Controls
   bool get isVoiceTutorMuted => voiceTutor.isMuted;
@@ -242,6 +290,34 @@ class SimulatorProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void loadCustomProcesses(List<SimulatedProcess> processes) {
+    pauseSimulation();
+    _readyQueue.clear();
+    _runningProcess = null;
+    _waitingQueue.clear();
+    _terminatedList.clear();
+    _ganttRecords.clear();
+    _currentTick = 0;
+    _pidCounter = processes.length + 1;
+    _currentQuantumTicks = 0;
+    _isContextSwitching = false;
+    _currentContextSwitchTicksRemaining = 0;
+    _totalContextSwitches = 0;
+    _totalContextSwitchTicks = 0;
+    _cpuIdleTicks = 0;
+    _lastNarratedPid = null;
+    _lastDecisionProcess = null;
+    _lastDecisionReason = null;
+    _lastPreemptedProcess = null;
+    _lastPreemptionReason = null;
+
+    for (final p in processes) {
+      p.state = ProcessState.ready;
+      _readyQueue.add(p);
+    }
+    notifyListeners();
+  }
+
   void resetSimulation() {
     pauseSimulation();
     _readyQueue.clear();
@@ -256,9 +332,30 @@ class SimulatorProvider extends ChangeNotifier {
     _currentContextSwitchTicksRemaining = 0;
     _totalContextSwitches = 0;
     _totalContextSwitchTicks = 0;
+    _cpuIdleTicks = 0;
     _lastNarratedPid = null;
+    _lastDecisionProcess = null;
+    _lastDecisionReason = null;
+    _lastPreemptedProcess = null;
+    _lastPreemptionReason = null;
     _spawnInitialProcesses();
     notifyListeners();
+  }
+
+  String _getDecisionRationale(SchedulingAlgorithmType algo, SimulatedProcess p) {
+    switch (algo) {
+      case SchedulingAlgorithmType.fcfs:
+        return 'earliest arrival time (${p.arrivalTime}s)';
+      case SchedulingAlgorithmType.sjf:
+        return 'shortest CPU burst time (${p.burstTime}s)';
+      case SchedulingAlgorithmType.srtf:
+        return 'shortest remaining burst time (${p.remainingTime}s)';
+      case SchedulingAlgorithmType.roundRobin:
+        return 'head of round-robin cyclic ready queue';
+      case SchedulingAlgorithmType.pbs:
+      case SchedulingAlgorithmType.ppbs:
+        return 'highest priority rank (Priority ${p.priority})';
+    }
   }
 
   void stepTick() {
@@ -307,6 +404,9 @@ class SimulatorProvider extends ChangeNotifier {
         next.startTime ??= _currentTick;
         _runningProcess = next;
         _currentQuantumTicks = 0;
+        _lastDecisionProcess = next.name;
+        _lastDecisionReason = _getDecisionRationale(_selectedAlgorithm, next);
+
         // Only narrate if a *different* process has been dispatched
         if (_lastNarratedPid != next.name) {
           _lastNarratedPid = next.name;
@@ -315,6 +415,10 @@ class SimulatorProvider extends ChangeNotifier {
       }
     }
 
+    // CPU Idle Tick tracking: Core had no active job this second
+    if (_runningProcess == null) {
+      _cpuIdleTicks++;
+    }
 
     // 5. Execute 1 tick of active process on CPU core
     if (_runningProcess != null) {
@@ -360,6 +464,10 @@ class SimulatorProvider extends ChangeNotifier {
         _currentQuantumTicks = 0;
 
         final nextProcess = _readyQueue.isNotEmpty ? _readyQueue.first.name : 'idle';
+        _lastPreemptedProcess = preemptedName;
+        _lastPreemptionNewProcess = nextProcess;
+        _lastPreemptionReason = 'Time Quantum ($_timeQuantum s) expired';
+
         // Always narrate RR preemption — the process genuinely switched
         _lastNarratedPid = nextProcess;
         voiceTutor.narrateContextSwitch(
@@ -394,6 +502,10 @@ class SimulatorProvider extends ChangeNotifier {
         final reason = _selectedAlgorithm == SchedulingAlgorithmType.ppbs
             ? 'higher priority process'
             : 'shorter remaining burst';
+        _lastPreemptedProcess = preemptedName;
+        _lastPreemptionNewProcess = nextName;
+        _lastPreemptionReason = reason;
+
         // Always narrate genuine preemptions — a real switch occurred
         _lastNarratedPid = nextName;
         voiceTutor.narrateContextSwitch(

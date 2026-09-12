@@ -83,4 +83,30 @@ class SchedulingAlgorithms {
     final totalTurnaround = terminated.fold<int>(0, (sum, p) => sum + p.turnaroundTime);
     return totalTurnaround / terminated.length;
   }
+
+  /// Calculates Average Response Time across terminated processes
+  static double calculateAverageResponseTime(List<SimulatedProcess> terminated) {
+    if (terminated.isEmpty) return 0.0;
+    final totalResponse = terminated.fold<int>(0, (sum, p) => sum + p.responseTime);
+    return totalResponse / terminated.length;
+  }
+
+  /// Calculates CPU Utilization % based on busy time versus total elapsed ticks.
+  static double calculateCpuUtilization({
+    required int totalTicks,
+    required int idleTicks,
+  }) {
+    if (totalTicks <= 0) return 0.0;
+    final busyTicks = (totalTicks - idleTicks).clamp(0, totalTicks);
+    return (busyTicks / totalTicks) * 100.0;
+  }
+
+  /// Calculates Throughput in processes per second (or per 100 seconds for readable scale).
+  static double calculateThroughput({
+    required int completedCount,
+    required int totalTicks,
+  }) {
+    if (totalTicks <= 0) return 0.0;
+    return completedCount / totalTicks;
+  }
 }

@@ -174,6 +174,46 @@ class VoiceTutorService {
     await speak(explanation);
   }
 
+  /// Feature A+: Extended Academic Explanations for Viva & Lab Defense
+  static String getConceptExplanation(String topic) {
+    switch (topic.toLowerCase().trim()) {
+      case 'context switching':
+        return 'A context switch saves the state of the active process into its PCB and restores another. It is pure operating system overhead with zero user progress.';
+      case 'waiting time':
+        return 'Waiting time is the total duration a process spends in the ready queue awaiting CPU execution. Minimizing average waiting time is a primary goal of scheduling.';
+      case 'turnaround time':
+        return 'Turnaround time is the total elapsed time from process admission to completion, calculated as completion time minus arrival time.';
+      case 'response time':
+        return 'Response time measures the delay between process arrival and its very first CPU dispatch, critical for interactive systems and user interfaces.';
+      case 'cpu utilization':
+        return 'CPU utilization is the percentage of time the processor core executes user processes instead of remaining idle or in context-switch overhead.';
+      case 'throughput':
+        return 'Throughput represents the number of processes completed per unit time. High throughput indicates an efficient, non-blocking scheduler.';
+      case 'process states':
+        return 'The five-state process model transitions tasks through New, Ready, Running, Waiting, and Terminated, managed by short and long term schedulers.';
+      case 'memory management':
+        return 'Memory management partitions physical RAM between the operating system kernel and active processes, dynamically allocating and reclaiming memory blocks.';
+      case 'process creation':
+        return 'Process creation initializes a Process Control Block with a PID, allocating initial memory and placing the task in the ready queue.';
+      case 'deadlock':
+        return 'Deadlock occurs when multiple processes hold resources while waiting on each other in a circular chain, requiring Coffman conditions to hold.';
+      case 'paging':
+        return 'Paging divides virtual memory into fixed pages and physical memory into frames, eliminating external fragmentation using page tables.';
+      case 'page replacement':
+        return 'Page replacement algorithms like FIFO and LRU select which memory frame to evict to disk when a page fault occurs and RAM is full.';
+      case 'disk scheduling':
+        return 'Disk scheduling algorithms like FCFS, SSTF, and SCAN order I/O read-write requests to minimize mechanical seek time and latency.';
+      default:
+        return 'Operating system scheduling manages CPU allocation across competing processes to optimize throughput, latency, and fairness.';
+    }
+  }
+
+  /// Speaks the academic explanation for an OS concept.
+  Future<void> explainConcept(String topic) async {
+    final explanation = getConceptExplanation(topic);
+    await speak(explanation);
+  }
+
   /// Feature B: Live Narration — queues a context-switch announcement.
   /// If TTS is busy, stores in [_pendingNarration] so the current word finishes first.
   Future<void> narrateContextSwitch({
